@@ -1,0 +1,107 @@
+# docker-compose.yml
+# AutoPilot Template — Docker Compose for local development
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    profiles: ["local-db"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-app_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./app:/app/app
+      - ./utils:/app/utils
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+      - document_storage:/app/document_storage
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - AUTH_BYPASS=${AUTH_BYPASS:-true}
+      - DATABASE_URL=${SUPABASE_DB_URL}
+      - COMMAND_CENTER_DB_SCHEMA=${COMMAND_CENTER_DB_SCHEMA:-command_center}
+    env_file:
+      - .env
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  slack-insights-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["python", "-m", "app.services.slack_socket_mode"]
+    volumes:
+      - ./app:/app/app
+      - ./utils:/app/utils
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - DATABASE_URL=${SUPABASE_DB_URL}
+      - COMMAND_CENTER_DB_SCHEMA=${COMMAND_CENTER_DB_SCHEMA:-command_center}
+    env_file:
+      - .env
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    # The shared backend image probes its HTTP server by default. This worker
+    # has no HTTP listener, so its successful long-lived process is its health.
+    healthcheck:
+      disable: true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
+      args:
+        - NEXTAUTH_URL=${NEXTAUTH_URL}
+        - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH:-}
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  document_storage:
+
+networks:
+  app-network:
+    driver: bridge

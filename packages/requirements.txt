@@ -1,0 +1,29 @@
+# packages/requirements.txt
+# Core Application Dependencies
+fastapi
+uvicorn
+gunicorn
+python-jose[cryptography]
+requests
+httpx
+msal>=1.31,<2
+slack-sdk>=3.36,<4
+python-multipart
+email-validator
+openpyxl  # Excel export for audit logs
+
+# Pin cryptography away from v48+. The 48.0.0 (May 2026) prebuilt
+# manylinux_2_34_aarch64 wheel uses ARM instructions that crash with SIGILL
+# on Docker Desktop's Linux VM under Apple Silicon. v46.x imports cleanly.
+cryptography>=44,<47
+
+# --- Development & Code Quality Tools ---
+black
+isort
+flake8
+pytest
+pytest-asyncio
+python-json-logger
+sqlalchemy
+psycopg2-binary
+alembic

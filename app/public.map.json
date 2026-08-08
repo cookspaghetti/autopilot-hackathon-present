@@ -1,0 +1,15 @@
+[
+  "/api/health",
+  "/api/ready",
+  "/api/files/.*",
+  "/api/auth/register",
+  "/api/command-center/supervity/callback",
+  "/api/command-center/supervity/notification",
+  "/api/command-center/supervity/decision",
+  "/api/command-center/supervity/action-authorization",
+  "/api/command-center/supervity/action-completion",
+  "/api/command-center/supervity/operator-result",
+  "/api/command-center/outlook/poll",
+  "/api/command-center/outlook/oauth/callback",
+  "/api/command-center/policies/evaluate"
+]
